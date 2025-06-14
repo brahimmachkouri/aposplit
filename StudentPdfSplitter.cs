@@ -95,7 +95,8 @@ namespace aposplit
             string? studentName = null;
             string? studentNumber = null;
 
-            // Le nom de famille est indiqué par une ligne contenant "Page :/" suivi du nom de l'étudiant.
+            // Le nom de famille est indiqué par une ligne contenant "Page :/" suivi du nom de l'étudiant. 
+            // (différent de la bibliothèque Python, qui ne récupère pas les mêmes séquences textuelles) 
             const string nameLineMarker = "Page :/";
 
             foreach (string line in lines)
@@ -182,7 +183,6 @@ namespace aposplit
             {
                 // Log l'erreur ou la remonter. Pour l'instant, on l'affiche en console.
                 Console.WriteLine($"Erreur lors de la sauvegarde du fichier {fullPath}: {ex.Message}");
-                // Optionnellement, vous pourriez vouloir ne pas crasher et continuer avec les autres étudiants.
             }
             finally
             {
