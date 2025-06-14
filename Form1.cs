@@ -17,7 +17,7 @@ namespace aposplit
 
         public Form1()
         {
-            InitializeComponent(); // Cette ligne appelle la configuration du Designer.cs
+            InitializeComponent(); 
             StartPosition = FormStartPosition.CenterScreen;
             FormBorderStyle = FormBorderStyle.FixedSingle;
             MaximizeBox = false;
@@ -26,14 +26,12 @@ namespace aposplit
             DragLeave += OnDragLeave;
         }
 
-        // Doit correspondre à ce qui est attendu par Form1.Designer.cs
         private void Form1_Load(object? sender, EventArgs e)
         {
             lblFichier.Text = string.Empty;
             ResetStatusBar();
         }
 
-        // Doit correspondre à ce qui est attendu par Form1.Designer.cs
         private void Form1_DragEnter(object? sender, DragEventArgs e)
         {
             ResetStatusBar();
@@ -60,7 +58,6 @@ namespace aposplit
             );
         }
 
-        // Doit correspondre à ce qui est attendu par Form1.Designer.cs
         private async void Form1_DragDrop(object? sender, DragEventArgs e)
         {
             if (_busy) return;
@@ -141,7 +138,5 @@ namespace aposplit
             _busy = false;
             lblFichier.Text = string.Empty;
         }
-
-        
     }
 }
