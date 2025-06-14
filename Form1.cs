@@ -23,22 +23,6 @@ namespace aposplit
             MaximizeBox = false;
 
             AllowDrop = true;
-            // IMPORTANT: Si Form1.Designer.cs s'occupe déjà de ces souscriptions,
-            // vous devriez supprimer les lignes équivalentes ici pour éviter
-            // que les événements soient gérés deux fois.
-            // Par exemple, si Designer.cs a "this.Load += new System.EventHandler(this.Form1_Load);",
-            // alors vous n'avez PAS besoin de "Load += Form1_Load;" ci-dessous.
-            // Le simple fait de définir les méthodes avec les bons noms suffit.
-            //
-            // Les erreurs indiquent que Designer.cs s'attend à :
-            // Form1_Load, Form1_DragDrop, Form1_DragEnter.
-            // Donc, les lignes suivantes de votre constructeur original devraient être supprimées
-            // si elles ne sont pas déjà commentées ou absentes :
-            // Load -= OnLoad; // ou quel que soit le nom d'origine
-            // DragEnter -= OnDragEnter; // ou quel que soit le nom d'origine
-            // DragDrop -= OnDragDrop; // ou quel que soit le nom d'origine
-
-            // Par contre, si DragLeave n'est pas dans Designer.cs, gardez cette ligne :
             DragLeave += OnDragLeave;
         }
 
@@ -127,8 +111,6 @@ namespace aposplit
             }
         }
 
-        // Si 'DragLeave' est aussi géré par le designer, il faudrait le renommer 'Form1_DragLeave'
-        // S'il n'y a pas de souscription dans Designer.cs pour DragLeave, ce nom est correct.
         private void OnDragLeave(object? sender, EventArgs e)
         {
             Cursor = Cursors.Default;
