@@ -39,10 +39,9 @@
             // lblFichier
             // 
             lblFichier.AutoSize = true;
-            lblFichier.Location = new Point(15, 9);
-            lblFichier.Margin = new Padding(6, 0, 6, 0);
+            lblFichier.Location = new Point(8, 4);
             lblFichier.Name = "lblFichier";
-            lblFichier.Size = new Size(84, 32);
+            lblFichier.Size = new Size(42, 15);
             lblFichier.TabIndex = 0;
             lblFichier.Text = "Fichier";
             // 
@@ -56,37 +55,36 @@
             // pnlStatusBar
             // 
             pnlStatusBar.Dock = DockStyle.Bottom;
-            pnlStatusBar.Location = new Point(0, 369);
-            pnlStatusBar.Margin = new Padding(4, 2, 4, 2);
-            pnlStatusBar.MaximumSize = new Size(0, 9);
+            pnlStatusBar.Location = new Point(0, 173);
+            pnlStatusBar.Margin = new Padding(2, 1, 2, 1);
+            pnlStatusBar.MaximumSize = new Size(0, 4);
             pnlStatusBar.Name = "pnlStatusBar";
-            pnlStatusBar.Size = new Size(509, 9);
+            pnlStatusBar.Size = new Size(274, 4);
             pnlStatusBar.TabIndex = 3;
             // 
             // lblInfo
             // 
             lblInfo.AutoSize = true;
-            lblInfo.Location = new Point(27, 301);
-            lblInfo.Margin = new Padding(4, 0, 4, 0);
+            lblInfo.Location = new Point(39, 141);
+            lblInfo.Margin = new Padding(2, 0, 2, 0);
             lblInfo.Name = "lblInfo";
-            lblInfo.Size = new Size(453, 32);
+            lblInfo.Size = new Size(195, 15);
             lblInfo.TabIndex = 4;
-            lblInfo.Text = "Déposez ici un relevé de notes d'Apogée";
+            lblInfo.Text = "Déposez ici un document d'Apogée";
             // 
             // Form1
             // 
-            AutoScaleDimensions = new SizeF(13F, 32F);
+            AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             BackgroundImage = Properties.Resources.aposplit4;
             BackgroundImageLayout = ImageLayout.Zoom;
-            ClientSize = new Size(509, 378);
+            ClientSize = new Size(274, 177);
             Controls.Add(lblInfo);
             Controls.Add(pnlStatusBar);
             Controls.Add(lblFichier);
             DoubleBuffered = true;
             FormBorderStyle = FormBorderStyle.FixedSingle;
             Icon = (Icon)resources.GetObject("$this.Icon");
-            Margin = new Padding(6);
             MaximizeBox = false;
             Name = "Form1";
             Text = "Aposplit by BM";

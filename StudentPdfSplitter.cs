@@ -131,7 +131,7 @@ namespace aposplit
             var results = new List<(PdfSharp.Pdf.PdfDocument, StudentPageInfo)>();
             StudentPageInfo? currentStudentInfo = null;
             PdfSharp.Pdf.PdfDocument? currentStudentPdf = null;
-            
+
             // On suppose que la première page est une page de garde et on l'ignore
             int pageCount = pdfHandler.GetPageCount(pdfPath);
             for (int i = 1; i < pageCount; i++) // On ignore la première page (page de garde)
@@ -222,7 +222,7 @@ namespace aposplit
             foreach (string line in lines)
             {
                 string trimmedLine = line.Trim();
-                
+
                 if (studentName == null)
                 {
                     // Recherche du nom de l'étudiant à partir de la ligne contenant le marqueur "Page :/"
@@ -299,5 +299,159 @@ namespace aposplit
                 return "nettoyage_vide";
             return cleaned;
         }
+
+        private static readonly Regex ReAttestationEdition = new Regex(@"edition\s*d['’]\s*attestations\s*de\s*r[ée]ussite", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static bool IsAttestationPage(Page page) => ReAttestationEdition.IsMatch(Normalize(page.Text ?? ""));
+        private static readonly Regex ReNameLine = new Regex(@"(Monsieur|Madame)\s+(.+?)a\s+été\s+décern[ée]+\s+à", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex ReFormationLine = new Regex(@"\bsp[ée]cialit[ée]\s+(.+?)\s*parcours", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex ReNumEtuAttestation = new Regex(@"\)(\d+)N°\s*[ée]tudiant\s*:", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        private static Tuple<string, string, string> ParseMeta(Page page)
+        {
+            string name = "";
+            string formation = "";
+            string ine = "";
+            string fullText = page.Text ?? "";
+
+            // Recherche du nom dans tout le texte
+            var nameMatch = ReNameLine.Match(fullText);
+            if (nameMatch.Success)
+            {
+                name = Clean(nameMatch.Groups[2].Value.Trim());
+            }
+
+            // Recherche de la formation dans tout le texte
+            var formationMatch = ReFormationLine.Match(fullText);
+            if (formationMatch.Success)
+            {
+                formation = Clean(formationMatch.Groups[1].Value.Trim());
+            }
+
+            // Recherche du numéro étudiant dans tout le texte
+            var ineMatch = ReNumEtuAttestation.Match(fullText);
+            if (ineMatch.Success)
+            {
+                ine = Clean(ineMatch.Groups[1].Value);
+            }
+
+
+            // Recherche du numéro étudiant ligne par ligne
+            var lines = fullText.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries).Select(l => l.Trim());
+
+            foreach (var line in lines)
+            {
+                if (ine == "")
+                {
+                    var m = ReNumEtuAttestation.Match(line);
+                    if (m.Success)
+                    {
+                        var tokens = m.Groups[2].Value.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                        if (tokens.Length > 0) ine = Clean(tokens[tokens.Length - 1]);
+                    }
+                }
+
+                if (ine != "") break;
+            }
+
+            // Valeurs par défaut
+            if (name == "") name = "nan";
+            if (formation == "") formation = "nan";
+            if (ine == "") ine = "nan";
+
+            Console.WriteLine($"Résultat final: {name}, {formation}, {ine}");
+            return Tuple.Create(
+                Normalize(name),
+                Normalize(formation),
+                Normalize(ine)
+            );
+        }
+
+        // ------------------------- Helpers utils ---------------------------------
+        private static string Normalize(string s)
+        {
+            var d = s.Normalize(NormalizationForm.FormD);
+            var sb = new StringBuilder(d.Length);
+            foreach (var c in d)
+                if (CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark)
+                    sb.Append(c);
+            return sb.ToString().Normalize(NormalizationForm.FormC).ToLowerInvariant();
+        }
+
+        private static string Clean(string s)
+        {
+            if (string.IsNullOrWhiteSpace(s)) return "x";
+            foreach (var c in Path.GetInvalidFileNameChars()) s = s.Replace(c, '_');
+            s = Regex.Replace(s, @"[^\w\-]", "_");
+            s = Regex.Replace(s, "_+", "_").Trim('_');
+            return s == "" ? "x" : s;
+        }
+
+        /// <summary>
+        /// Détecte automatiquement le type de document (relevé de notes ou attestation)
+        /// et effectue la séparation adaptée.
+        /// </summary>
+        /// <param name="pdfPath">Chemin du fichier PDF source</param>
+        /// <param name="outputBaseDir">Répertoire de sortie</param>
+        public static void AutoSplit(string pdfPath, string outputBaseDir)
+        {
+            if (string.IsNullOrEmpty(pdfPath)) throw new ArgumentNullException(nameof(pdfPath));
+            if (!File.Exists(pdfPath)) throw new FileNotFoundException("Le fichier PDF source n'a pas été trouvé.", pdfPath);
+
+            var pdfHandler = new PdfHandler();
+            // On lit le texte de la première page pour détecter le type de document
+            string firstPageText = pdfHandler.GetPageText(pdfPath, 0);
+
+            // On utilise la regex d'attestation déjà présente
+            if (ReAttestationEdition.IsMatch(Normalize(firstPageText)))
+            {
+                // Appel à une méthode de split d'attestations (à implémenter si besoin)
+                string outDir = Path.Combine(Path.GetDirectoryName(pdfPath) ?? Environment.CurrentDirectory,
+                                   $"{Path.GetFileNameWithoutExtension(pdfPath)}_attestations");
+                Directory.CreateDirectory(outDir);
+
+                UglyToad.PdfPig.PdfDocument pdfDocument = UglyToad.PdfPig.PdfDocument.Open(pdfPath);
+                UglyToad.PdfPig.PdfDocument pig = pdfDocument;
+                PdfSharp.Pdf.PdfDocument sharp = PdfSharp.Pdf.IO.PdfReader.Open(pdfPath, PdfSharp.Pdf.IO.PdfDocumentOpenMode.Import);
+
+                // Vérifie que la première page est bien une édition d’attestations
+                if (!IsAttestationPage(pig.GetPage(1)))
+                {
+                    Console.WriteLine("❓ Le document ne semble pas être « Édition d’attestations de réussite ».");
+                    return;
+                }
+
+                int saved = 0;
+                for (int i = 0; i < pig.NumberOfPages; i++)
+                {
+                    if (i > 0)
+                    {
+                        var pagePig = pig.GetPage(i + 1);
+
+                        var (name, formation, ine) = ParseMeta(pagePig);
+                        string fileName = $"{formation}-{name}-{ine}.pdf";
+                        string fullPath = Path.Combine(outDir, fileName);
+
+                        using (var single = new PdfSharp.Pdf.PdfDocument())
+                        {
+                            single.AddPage(sharp.Pages[i]); // PdfSharp pages = 0-based
+                            single.Save(fullPath);
+                        }
+
+                        Console.WriteLine($"✓ Page {i + 1} → {fileName}");
+                        saved++;
+                    }
+                }
+
+                Console.WriteLine(saved > 0
+                    ? $"Terminé : {saved} attestation(s) enregistrée(s) dans « {outDir} »."
+                    : "Aucune page d’attestation détectée.");
+            }
+            else
+            {
+                // Par défaut, on considère qu'il s'agit d'un relevé de notes
+                SplitByStudent(pdfPath, outputBaseDir);
+            }
+        }
+
     }
 }

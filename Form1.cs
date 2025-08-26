@@ -93,7 +93,8 @@ namespace aposplit
                     throw new InvalidOperationException($"Impossible de déterminer le dossier de sortie pour '{pdfFilePath}'.");
                 }
 
-                await Task.Run(() => StudentPdfSplitter.SplitByStudent(pdfFilePath, outputDirectory));
+                //await Task.Run(() => StudentPdfSplitter.SplitByStudent(pdfFilePath, outputDirectory));
+                await Task.Run(() => StudentPdfSplitter.AutoSplit(pdfFilePath, outputDirectory));
                 UpdateStatusBar(true);
             }
             catch (Exception ex)
