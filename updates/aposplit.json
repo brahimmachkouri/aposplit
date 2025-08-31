@@ -1,7 +1,0 @@
-{
-  "version": "1.1.0.0",
-  "url": "https://github.com/brahimmachkouri/aposplit/releases/latest/download/aposplit.7z",
-  "changelog": "https://github.com/brahimmachkouri/aposplit/releases",
-  "mandatory": { "value": false, "mode": 0 },
-  "checksum": { "value": "", "hashingAlgorithm": "SHA256" }
-}
