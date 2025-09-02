@@ -1,4 +1,4 @@
-// BM 2025
+// (c) Brahim MACHKOURI 2025
 using System;
 using System.Collections.Generic;
 using System.IO;
