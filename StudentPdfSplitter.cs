@@ -308,7 +308,7 @@ namespace aposplit
 
         private static Tuple<string, string, string> ParseMeta(Page page)
         {
-            string name = "";
+            string nom = "";
             string formation = "";
             string ine = "";
             string fullText = page.Text ?? "";
@@ -317,7 +317,19 @@ namespace aposplit
             var nameMatch = ReNameLine.Match(fullText);
             if (nameMatch.Success)
             {
-                name = Clean(nameMatch.Groups[2].Value.Trim());
+                var fullName = nameMatch.Groups[2].Value.Trim();
+
+                // On coupe seulement au premier espace
+                var firstSpaceIndex = fullName.IndexOf(' ');
+                if (firstSpaceIndex > 0)
+                {
+                    nom = Clean(fullName.Substring(firstSpaceIndex + 1).Trim());
+                }
+                else
+                {
+                    // Cas particulier : un seul mot
+                    nom = fullName;
+                }
             }
 
             // Recherche de la formation dans tout le texte
@@ -354,13 +366,14 @@ namespace aposplit
             }
 
             // Valeurs par défaut
-            if (name == "") name = "nan";
+            if (nom == "") nom = "nan";
             if (formation == "") formation = "nan";
             if (ine == "") ine = "nan";
 
-            Console.WriteLine($"Résultat final: {name}, {formation}, {ine}");
+            Console.WriteLine($"Résultat final: {nom}, {formation}, {ine}");
             return Tuple.Create(
-                Normalize(name),
+                //Normalize(prenom),
+                Normalize(nom),
                 Normalize(formation),
                 Normalize(ine)
             );
@@ -427,8 +440,8 @@ namespace aposplit
                     {
                         var pagePig = pig.GetPage(i + 1);
 
-                        var (name, formation, ine) = ParseMeta(pagePig);
-                        string fileName = $"{formation}-{name}-{ine}.pdf";
+                        var (nom, formation, ine) = ParseMeta(pagePig);
+                        string fileName = $"{formation}-{nom}-{ine}.pdf";
                         string fullPath = Path.Combine(outDir, fileName);
 
                         using (var single = new PdfSharp.Pdf.PdfDocument())
