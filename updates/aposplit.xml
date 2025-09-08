@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <item>
-  <version>1.2.0.0</version>
+  <version>1.2.1.0</version>
   <url>https://github.com/brahimmachkouri/aposplit/releases/latest/download/aposplit.zip</url>
   <changelog>https://github.com/brahimmachkouri/aposplit/releases</changelog>
   <mandatory>false</mandatory>
   <!-- optionnel -->
-  <!-- <checksum algorithm="SHA256">PUT_YOUR_SHA256_HERE</checksum> -->
+  <!-- <checksum algorithm="SHA256">sha256:8fb68eaf25bf885f2863374cf634dd8a119326835ba784b66b05b2d9eaeb6794</checksum> -->
 </item>
