@@ -191,7 +191,8 @@ namespace aposplit
         {
             string safeStudentName = SanitizeForFilename(studentInfo.Name ?? "NomNonTrouve");
             string safeStudentNumber = SanitizeForFilename(studentInfo.StudentNumber ?? "NumNonTrouve");
-            string fileName = $"{baseFileName}_{safeStudentName}_{safeStudentNumber}.pdf";
+            //string fileName = $"{baseFileName}_{safeStudentName}_{safeStudentNumber}.pdf";
+            string fileName = $"{safeStudentName}_{safeStudentNumber}.pdf";
             string fullPath = Path.Combine(outputDir, fileName);
 
             try
@@ -441,7 +442,7 @@ namespace aposplit
                         var pagePig = pig.GetPage(i + 1);
 
                         var (nom, formation, ine) = ParseMeta(pagePig);
-                        string fileName = $"{formation}-{nom}-{ine}.pdf";
+                        string fileName = $"{nom}-{ine}.pdf";
                         string fullPath = Path.Combine(outDir, fileName);
 
                         using (var single = new PdfSharp.Pdf.PdfDocument())

@@ -34,6 +34,7 @@
             toolTip1 = new ToolTip(components);
             pnlStatusBar = new Panel();
             lblInfo = new Label();
+            lblVersion = new Label();
             SuspendLayout();
             // 
             // lblFichier
@@ -72,6 +73,16 @@
             lblInfo.TabIndex = 4;
             lblInfo.Text = "Déposez ici un document d'Apogée";
             // 
+            // lblVersion
+            // 
+            lblVersion.AutoSize = true;
+            lblVersion.Location = new Point(226, 155);
+            lblVersion.Margin = new Padding(1, 0, 1, 0);
+            lblVersion.Name = "lblVersion";
+            lblVersion.Size = new Size(45, 15);
+            lblVersion.TabIndex = 5;
+            lblVersion.Text = "version";
+            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
@@ -79,6 +90,7 @@
             BackgroundImage = Properties.Resources.aposplit4;
             BackgroundImageLayout = ImageLayout.Zoom;
             ClientSize = new Size(274, 177);
+            Controls.Add(lblVersion);
             Controls.Add(lblInfo);
             Controls.Add(pnlStatusBar);
             Controls.Add(lblFichier);
@@ -101,5 +113,6 @@
         private Label lblFichier;
         private ToolTip toolTip1;
         private Label lblInfo;
+        private Label lblVersion;
     }
 }

@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -17,7 +18,7 @@ namespace aposplit
 
         public Form1()
         {
-            InitializeComponent(); 
+            InitializeComponent();
             StartPosition = FormStartPosition.CenterScreen;
             FormBorderStyle = FormBorderStyle.FixedSingle;
             MaximizeBox = false;
@@ -29,6 +30,13 @@ namespace aposplit
         private void Form1_Load(object? sender, EventArgs e)
         {
             lblFichier.Text = string.Empty;
+            var version = $"v{Application.ProductVersion}";
+            var firstSpaceIndex = version.IndexOf('+');
+            if (firstSpaceIndex > 0)
+            {
+                version = version.Substring(0, firstSpaceIndex).Trim();
+            }
+            lblVersion.Text = version;
             ResetStatusBar();
         }
 
@@ -139,5 +147,7 @@ namespace aposplit
             _busy = false;
             lblFichier.Text = string.Empty;
         }
+
+       
     }
 }
