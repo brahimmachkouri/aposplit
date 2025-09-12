@@ -70,16 +70,14 @@ namespace aposplit
 
     /// <summary>
     /// Divise un PDF de relevés de notes en un fichier par étudiant, en utilisant le numéro étudiant comme clé.
-    /// Les fichiers sont créés dans un sous-dossier nommé <nom_original_per_student>.
+    /// Les fichiers sont créés dans un sous-dossier nommé <nom_original_par_etudiant>.
     /// </summary>
     public static class StudentPdfSplitter
     {
         // Constantes pour regex/chaînes magiques
         private const string StudentNumberRegex = @"N°\s*Etudiant\s*[:\-]?\s*(\d+)";
         private const string NameLineMarker = "Page :/";
-
         private static readonly Regex ReNumEtu = new(StudentNumberRegex, RegexOptions.IgnoreCase | RegexOptions.Compiled);
-
         private record StudentPageInfo(string? Name, string? StudentNumber);
 
         /// <summary>
@@ -93,16 +91,12 @@ namespace aposplit
 
             string originalFileNameWithoutExt = Path.GetFileNameWithoutExtension(pdfPath);
             string sanitizedBaseName = SanitizeForFilename(originalFileNameWithoutExt);
-            string studentOutputDir = Path.Combine(outputBaseDir, $"{sanitizedBaseName}_per_student");
+            string studentOutputDir = Path.Combine(outputBaseDir, $"{sanitizedBaseName}_par_etudiant");
 
             Directory.CreateDirectory(studentOutputDir);
 
             var pdfHandler = new PdfHandler();
-            var studentDocuments = ExtractStudentDocuments(pdfPath, pdfHandler);
-
-            SaveStudentDocuments(studentDocuments, sanitizedBaseName, studentOutputDir);
-
-            Console.WriteLine($"Traitement terminé : {studentDocuments.Count} fichiers créés dans {studentOutputDir}");
+            ExtractAndSaveStudentDocuments(pdfPath, pdfHandler, studentOutputDir);
         }
 
         /// <summary>
@@ -120,35 +114,43 @@ namespace aposplit
         }
 
         /// <summary>
-        /// Extraction des pages des relevés de notes pour chaque étudiant à partir du PDF source.
+        /// Extrait les pages des relevés de notes de chaque étudiant à partir d’un fichier PDF source, 
+        /// et enregistre chaque relevé individuel dans un fichier PDF distinct.
         /// </summary>
-        /// <param name="pdfPath"></param>
-        /// <param name="pdfHandler"></param>
-        /// <returns></returns>
-        private static List<(PdfSharp.Pdf.PdfDocument Pdf, StudentPageInfo Info)> ExtractStudentDocuments(
-            string pdfPath, IPdfHandler pdfHandler)
+        /// <param name="pdfPath">Chemin vers le fichier PDF source contenant tous les relevés de notes.</param>
+        /// <param name="pdfHandler">Instance de gestionnaire PDF permettant de lire et manipuler les pages du document.</param>
+        /// <param name="outputDir">Chemin du répertoire dans lequel les fichiers PDF des étudiants seront enregistrés.</param>
+        /// <remarks>
+        /// Chaque étudiant est identifié par un numéro étudiant extrait du texte de la page. Lorsqu’un changement d’étudiant est détecté,
+        /// les pages précédentes sont enregistrées dans un nouveau fichier PDF, et un nouveau document est créé.
+        /// </remarks>
+        /// <returns>Ne retourne rien mais affiche dans la console le nombre de fichiers PDF créés à la fin du traitement.</returns>
+        private static void ExtractAndSaveStudentDocuments(
+    string pdfPath, IPdfHandler pdfHandler, string outputDir)
         {
-            var results = new List<(PdfSharp.Pdf.PdfDocument, StudentPageInfo)>();
             StudentPageInfo? currentStudentInfo = null;
             PdfSharp.Pdf.PdfDocument? currentStudentPdf = null;
+            int savedCount = 0;
 
-            // On suppose que la première page est une page de garde et on l'ignore
             int pageCount = pdfHandler.GetPageCount(pdfPath);
-            for (int i = 1; i < pageCount; i++) // On ignore la première page (page de garde)
+            for (int i = 1; i < pageCount; i++)
             {
-                // Extraction du texte de la page actuelle
                 string pageText = pdfHandler.GetPageText(pdfPath, i);
                 StudentPageInfo extractedInfo = ParseStudentInfoFromText(pageText);
 
-                // Vérification si on a déjà un document pour l'étudiant actuel
                 bool isNewStudent = currentStudentInfo == null ||
                                     (extractedInfo.StudentNumber != null && extractedInfo.StudentNumber != currentStudentInfo.StudentNumber) ||
                                     (extractedInfo.StudentNumber == null && currentStudentInfo.StudentNumber != null);
-                // Si on a un nouveau numéro étudiant ou si on n'a pas de numéro étudiant actuel
+
                 if (isNewStudent)
                 {
+                    // Sauvegarder le PDF précédent avant de passer au suivant
                     if (currentStudentPdf != null && currentStudentInfo != null && currentStudentPdf.PageCount > 0)
-                        results.Add((currentStudentPdf, currentStudentInfo));
+                    {
+                        SaveCurrentStudentPdf(currentStudentPdf, currentStudentInfo, outputDir);
+                        savedCount++;
+                        currentStudentPdf.Dispose(); // Libérer la mémoire
+                    }
 
                     currentStudentInfo = extractedInfo;
                     currentStudentPdf = new PdfSharp.Pdf.PdfDocument();
@@ -157,56 +159,38 @@ namespace aposplit
                 pdfHandler.AddPageToDocument(currentStudentPdf!, pdfPath, i);
             }
 
-            // Ajout du dernier étudiant
+            // Sauvegarder le dernier étudiant
             if (currentStudentPdf != null && currentStudentInfo != null && currentStudentPdf.PageCount > 0)
-                results.Add((currentStudentPdf, currentStudentInfo));
-
-            return results;
-        }
-
-        /// <summary>
-        /// Enregistrement des documents PDF des étudiants dans le répertoire de sortie spécifié.
-        /// </summary>
-        /// <param name="studentDocuments"></param>
-        /// <param name="baseName"></param>
-        /// <param name="outputDir"></param>
-        private static void SaveStudentDocuments(
-            List<(PdfSharp.Pdf.PdfDocument Pdf, StudentPageInfo Info)> studentDocuments,
-            string baseName, string outputDir)
-        {
-            foreach (var (pdf, info) in studentDocuments)
             {
-                SaveStudentPdf(pdf, info, baseName, outputDir);
+                SaveCurrentStudentPdf(currentStudentPdf, currentStudentInfo, outputDir);
+                savedCount++;
+                currentStudentPdf.Dispose();
             }
+
+            Console.WriteLine($"Traitement terminé : {savedCount} fichiers créés.");
         }
 
         /// <summary>
-        /// Enregistrement du PDF d'un étudiant dans un fichier avec un nom basé sur son nom et son numéro étudiant.
+        /// Enregistre le document PDF d’un étudiant dans le répertoire de sortie spécifié, 
+        /// en générant un nom de fichier sûr à partir de son nom et de son numéro d'étudiant.
         /// </summary>
-        /// <param name="studentPdf"></param>
-        /// <param name="studentInfo"></param>
-        /// <param name="baseFileName"></param>
-        /// <param name="outputDir"></param>
-        private static void SaveStudentPdf(PdfSharp.Pdf.PdfDocument studentPdf, StudentPageInfo studentInfo, string baseFileName, string outputDir)
+        /// <param name="pdf">Document PDF à sauvegarder, correspondant à un étudiant.</param>
+        /// <param name="info">Informations de l'étudiant (nom, numéro étudiant, etc.).</param>
+        /// <param name="outputDir">Chemin absolu vers le répertoire dans lequel le fichier PDF sera enregistré.</param>
+        /// <remarks>
+        /// Le nom du fichier est généré sous la forme : {NomEtudiant}_{NumeroEtudiant}.pdf,
+        /// après nettoyage des caractères potentiellement invalides pour le système de fichiers.
+        /// </remarks>
+        private static void SaveCurrentStudentPdf(
+            PdfSharp.Pdf.PdfDocument pdf, StudentPageInfo info, string outputDir)
         {
-            string safeStudentName = SanitizeForFilename(studentInfo.Name ?? "NomNonTrouve");
-            string safeStudentNumber = SanitizeForFilename(studentInfo.StudentNumber ?? "NumNonTrouve");
-            //string fileName = $"{baseFileName}_{safeStudentName}_{safeStudentNumber}.pdf";
+            string safeStudentName = SanitizeForFilename(info.Name ?? "NomNonTrouve");
+            string safeStudentNumber = SanitizeForFilename(info.StudentNumber ?? "NumNonTrouve");
             string fileName = $"{safeStudentName}_{safeStudentNumber}.pdf";
-            string fullPath = Path.Combine(outputDir, fileName);
+            string filePath = Path.Combine(outputDir, fileName);
 
-            try
-            {
-                studentPdf.Save(fullPath);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Erreur lors de la sauvegarde du fichier {fullPath}: {ex.Message}");
-            }
-            finally
-            {
-                studentPdf.Close(); // Libération des ressources
-            }
+            pdf.Save(filePath);
+            Console.WriteLine($"Sauvegardé : {fileName}");
         }
 
         /// <summary>
@@ -302,15 +286,14 @@ namespace aposplit
         }
 
         private static readonly Regex ReAttestationEdition = new Regex(@"edition\s*d['’]\s*attestations\s*de\s*r[ée]ussite", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-        private static bool IsAttestationPage(Page page) => ReAttestationEdition.IsMatch(Normalize(page.Text ?? ""));
+        //private static bool IsAttestationPage(Page page) => ReAttestationEdition.IsMatch(Normalize(page.Text ?? ""));
         private static readonly Regex ReNameLine = new Regex(@"(Monsieur|Madame)\s+(.+?)a\s+été\s+décern[ée]+\s+à", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-        private static readonly Regex ReFormationLine = new Regex(@"\bsp[ée]cialit[ée]\s+(.+?)\s*parcours", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        //private static readonly Regex ReFormationLine = new Regex(@"\bsp[ée]cialit[ée]\s+(.+?)\s*parcours", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         private static readonly Regex ReNumEtuAttestation = new Regex(@"\)(\d+)N°\s*[ée]tudiant\s*:", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-        private static Tuple<string, string, string> ParseMeta(Page page)
+        private static Tuple<string, string> ParseMeta(Page page)
         {
             string nom = "";
-            string formation = "";
             string ine = "";
             string fullText = page.Text ?? "";
 
@@ -333,13 +316,6 @@ namespace aposplit
                 }
             }
 
-            // Recherche de la formation dans tout le texte
-            var formationMatch = ReFormationLine.Match(fullText);
-            if (formationMatch.Success)
-            {
-                formation = Clean(formationMatch.Groups[1].Value.Trim());
-            }
-
             // Recherche du numéro étudiant dans tout le texte
             var ineMatch = ReNumEtuAttestation.Match(fullText);
             if (ineMatch.Success)
@@ -350,7 +326,6 @@ namespace aposplit
 
             // Recherche du numéro étudiant ligne par ligne
             var lines = fullText.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries).Select(l => l.Trim());
-
             foreach (var line in lines)
             {
                 if (ine == "")
@@ -368,14 +343,11 @@ namespace aposplit
 
             // Valeurs par défaut
             if (nom == "") nom = "nan";
-            if (formation == "") formation = "nan";
             if (ine == "") ine = "nan";
 
-            Console.WriteLine($"Résultat final: {nom}, {formation}, {ine}");
+            Console.WriteLine($"Résultat final: {nom}, {ine}");
             return Tuple.Create(
-                //Normalize(prenom),
                 Normalize(nom),
-                Normalize(formation),
                 Normalize(ine)
             );
         }
@@ -400,6 +372,41 @@ namespace aposplit
             return s == "" ? "x" : s;
         }
 
+        private static void SplitByAttestation(string pdfPath)
+        {
+            string outDir = Path.Combine(Path.GetDirectoryName(pdfPath) ?? Environment.CurrentDirectory, $"{Path.GetFileNameWithoutExtension(pdfPath)}_attestations");
+            Directory.CreateDirectory(outDir);
+
+            UglyToad.PdfPig.PdfDocument pdfDocument = UglyToad.PdfPig.PdfDocument.Open(pdfPath);
+            UglyToad.PdfPig.PdfDocument pig = pdfDocument;
+            PdfSharp.Pdf.PdfDocument sharp = PdfSharp.Pdf.IO.PdfReader.Open(pdfPath, PdfSharp.Pdf.IO.PdfDocumentOpenMode.Import);
+
+            int saved = 0;
+            for (int i = 0; i < pig.NumberOfPages; i++)
+            {
+                if (i > 0)
+                {
+                    var pagePig = pig.GetPage(i + 1);
+                    var (nom, ine) = ParseMeta(pagePig);
+                    string fileName = $"{nom}-{ine}.pdf";
+                    string fullPath = Path.Combine(outDir, fileName);
+
+                    using (var single = new PdfSharp.Pdf.PdfDocument())
+                    {
+                        single.AddPage(sharp.Pages[i]); // PdfSharp pages = 0-based
+                        single.Save(fullPath);
+                    }
+
+                    Console.WriteLine($"✓ Page {i + 1} → {fileName}");
+                    saved++;
+                }
+            }
+
+            Console.WriteLine(saved > 0
+                ? $"Terminé : {saved} attestation(s) enregistrée(s) dans « {outDir} »."
+                : "Aucune page d’attestation détectée.");
+        }
+
         /// <summary>
         /// Détecte automatiquement le type de document (relevé de notes ou attestation)
         /// et effectue la séparation adaptée.
@@ -418,47 +425,7 @@ namespace aposplit
             // On utilise la regex d'attestation déjà présente
             if (ReAttestationEdition.IsMatch(Normalize(firstPageText)))
             {
-                // Appel à une méthode de split d'attestations (à implémenter si besoin)
-                string outDir = Path.Combine(Path.GetDirectoryName(pdfPath) ?? Environment.CurrentDirectory,
-                                   $"{Path.GetFileNameWithoutExtension(pdfPath)}_attestations");
-                Directory.CreateDirectory(outDir);
-
-                UglyToad.PdfPig.PdfDocument pdfDocument = UglyToad.PdfPig.PdfDocument.Open(pdfPath);
-                UglyToad.PdfPig.PdfDocument pig = pdfDocument;
-                PdfSharp.Pdf.PdfDocument sharp = PdfSharp.Pdf.IO.PdfReader.Open(pdfPath, PdfSharp.Pdf.IO.PdfDocumentOpenMode.Import);
-
-                // Vérifie que la première page est bien une édition d’attestations
-                if (!IsAttestationPage(pig.GetPage(1)))
-                {
-                    Console.WriteLine("❓ Le document ne semble pas être « Édition d’attestations de réussite ».");
-                    return;
-                }
-
-                int saved = 0;
-                for (int i = 0; i < pig.NumberOfPages; i++)
-                {
-                    if (i > 0)
-                    {
-                        var pagePig = pig.GetPage(i + 1);
-
-                        var (nom, formation, ine) = ParseMeta(pagePig);
-                        string fileName = $"{nom}-{ine}.pdf";
-                        string fullPath = Path.Combine(outDir, fileName);
-
-                        using (var single = new PdfSharp.Pdf.PdfDocument())
-                        {
-                            single.AddPage(sharp.Pages[i]); // PdfSharp pages = 0-based
-                            single.Save(fullPath);
-                        }
-
-                        Console.WriteLine($"✓ Page {i + 1} → {fileName}");
-                        saved++;
-                    }
-                }
-
-                Console.WriteLine(saved > 0
-                    ? $"Terminé : {saved} attestation(s) enregistrée(s) dans « {outDir} »."
-                    : "Aucune page d’attestation détectée.");
+                SplitByAttestation(pdfPath);
             }
             else
             {
